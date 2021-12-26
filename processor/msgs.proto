@@ -1,0 +1,88 @@
+syntax = "proto3"; //版本号
+option go_package = "./msgs;msgs";
+package msgs; //包名
+
+
+message MsgHead {
+  msg_type type = 1; ///< 命令字（压缩加密算法占高位1字节）
+  encrypt_type encrypt = 2; ///< 加密类型
+  fixed32 check_num = 3; ///< 校验消息的完整性,防止消息被篡改
+}
+
+//消息类型
+enum msg_type {
+  NULL_MSG_TYPE = 0;
+  REQUEST = 1; //请求
+  RESPONSE = 2; //回复
+  PUSH = 3; //服务器推送
+}
+
+//加密类型
+enum encrypt_type {
+  NULL_ENCRYPT = 0;
+  MD5 = 1;
+}
+
+//模块类型
+enum mod_type {
+  NULL_MOD = 0;
+  BASE = 1;
+  //CHAT 聊天系统
+  CHAT = 2;
+  // 地图模块
+  SCENE_MAP = 3;
+}
+
+/**
+ * @brief 消息
+ * @note 消息主体是data，所有业务逻辑内容均放在data里。
+ * req_target 是请求目标,指的是发送消息
+ * rsp_result 是响应结果，响应包必须填充
+ */
+
+message MsgBody {
+  mod_type mod = 1; ///< 消息所属模块（压缩加密算法占高位1字节）,用于消息路由
+  int32 cmd = 2; ///< 消息命令字（压缩加密算法占高位1字节）,用于消息路由
+  bytes data = 3; ///< 消息体主体,真正的业务数据内容,按照业务需要填写
+  string trace_id = 4; ///< 错误跟踪使用,预留（客户端无须理会）
+  uint32 mid = 5; ///< 消息序列号
+
+  oneof msg_type {
+    Request req_target = 10; ///< 请求目标（请求包必须填充）
+    Response rsp_result = 11; ///< 响应结果（响应包必须填充）
+    Push rsp_push = 12; ///< 响应结果（响应包必须填充）
+  }
+
+  message Request {
+    uint32 v = 1; ///< 版本号 ,用于消息路由,客户端填写版本号,服务器根据版本号做不同的处理,客户端负责填充
+  }
+
+  message Response {
+    code code = 1; ///< 成功或者 错误码
+    string info = 2; ///< 提示信息
+  }
+
+  message Push {
+    string info = 2; ///< 提示信息
+  }
+
+}
+
+//code码
+enum code {
+  //0~999, 通用错误码
+  Null = 0;
+  OK = 200; // 请求已成功，请求所希望的响应头或数据体将随此响应返回。
+  BadRequest = 400; // 请求包含语法错误。
+  Unauthorized = 401; // 当前请求需要用户验证。
+  Forbidden = 403; // 服务器已理解请求，但拒绝执行它。
+  InternalServerError = 500; // 服务器遇到了一个未曾预料的状况，导致了它无法完成对请求的处理。
+
+  //>999 业务错误码
+  UserBan = 1000; //封禁用户
+  MatchErr = 1001; //匹配失败
+  NoGold = 1004; //没有元宝
+  BetIsMax = 1005; //限红
+  LowGold = 1006; //元宝太少
+  ShopNotExist = 1009; //购买的商品不存在
+}
